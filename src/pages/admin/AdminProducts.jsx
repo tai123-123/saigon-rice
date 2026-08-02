@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { products as initialProducts } from '../../data/products';
-import { FaEdit, FaTrash, FaPlusCircle, FaTimes, FaSave } from 'react-icons/fa';
+import { useStore } from '../../context/StoreContext';
+import { FaEdit, FaTrash, FaPlusCircle, FaTimes, FaSave, FaBan, FaCheck } from 'react-icons/fa';
 
 export const AdminProducts = ({ onShowToast }) => {
-  const [productList, setProductList] = useState(() => {
-    const saved = localStorage.getItem('saigon_rice_products_admin');
-    return saved ? JSON.parse(saved) : initialProducts;
-  });
+  const { products, addProduct, editProduct, deleteProduct, disableProduct } = useStore();
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -15,7 +12,7 @@ export const AdminProducts = ({ onShowToast }) => {
   // Form states
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [stockStatus, setStockStatus] = useState('In Stock');
+  const [stock, setStock] = useState('25');
   const [category, setCategory] = useState('ST Rice');
   const [bagSize, setBagSize] = useState('5kg');
   const [tasteProfile, setTasteProfile] = useState('Soft');
@@ -23,11 +20,6 @@ export const AdminProducts = ({ onShowToast }) => {
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
-
-  const persistProducts = (updatedList) => {
-    setProductList(updatedList);
-    localStorage.setItem('saigon_rice_products_admin', JSON.stringify(updatedList));
   };
 
   const handleAddProduct = (e) => {
@@ -38,16 +30,15 @@ export const AdminProducts = ({ onShowToast }) => {
     }
 
     const newProd = {
-      id: 'prod-' + Date.now(),
       name,
       price: parseInt(price),
+      stock: parseInt(stock) || 0,
       discount: 0,
       image,
       images: [image],
       description: `Delicious premium grains from the countryside of Vietnam. Packaged fresh for ultimate culinary standards.`,
       rating: 4.8,
       reviews: [],
-      stockStatus,
       bagSize,
       tasteProfile,
       origin: "Soc Trang, Vietnam",
@@ -57,8 +48,7 @@ export const AdminProducts = ({ onShowToast }) => {
       nutrition: { calories: "348 kcal", protein: "7.0g", carbs: "78.0g", fat: "0.5g", fiber: "1.0g" }
     };
 
-    const updated = [newProd, ...productList];
-    persistProducts(updated);
+    addProduct(newProd);
     setIsAdding(false);
     resetForm();
     if (onShowToast) onShowToast('Product added successfully!', 'success');
@@ -68,7 +58,7 @@ export const AdminProducts = ({ onShowToast }) => {
     setEditingProduct(prod);
     setName(prod.name);
     setPrice(prod.price);
-    setStockStatus(prod.stockStatus);
+    setStock(prod.stock !== undefined ? prod.stock : 25);
     setCategory(prod.category);
     setBagSize(prod.bagSize);
     setTasteProfile(prod.tasteProfile);
@@ -79,13 +69,18 @@ export const AdminProducts = ({ onShowToast }) => {
     e.preventDefault();
     if (!name.trim() || !price || !image.trim()) return;
 
-    const updated = productList.map(p => 
-      p.id === editingProduct.id 
-        ? { ...p, name, price: parseInt(price), stockStatus, category, bagSize, tasteProfile, image } 
-        : p
-    );
+    const updated = {
+      id: editingProduct.id,
+      name,
+      price: parseInt(price),
+      stock: parseInt(stock) || 0,
+      category,
+      bagSize,
+      tasteProfile,
+      image
+    };
 
-    persistProducts(updated);
+    editProduct(updated);
     setEditingProduct(null);
     resetForm();
     if (onShowToast) onShowToast('Product settings updated successfully!', 'success');
@@ -93,15 +88,14 @@ export const AdminProducts = ({ onShowToast }) => {
 
   const handleDeleteProduct = (id) => {
     if (!window.confirm("Are you sure you want to remove this product grain from the catalog?")) return;
-    const updated = productList.filter(p => p.id !== id);
-    persistProducts(updated);
+    deleteProduct(id);
     if (onShowToast) onShowToast('Product removed from catalog.', 'info');
   };
 
   const resetForm = () => {
     setName('');
     setPrice('');
-    setStockStatus('In Stock');
+    setStock('25');
     setCategory('ST Rice');
     setBagSize('5kg');
     setTasteProfile('Soft');
@@ -138,12 +132,13 @@ export const AdminProducts = ({ onShowToast }) => {
                   <th className="py-4 px-6">Category</th>
                   <th className="py-4 px-6">Price</th>
                   <th className="py-4 px-6">Stock Status</th>
+                  <th className="py-4 px-6">Quantity</th>
                   <th className="py-4 px-6">Taste</th>
                   <th className="py-4 px-6 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-soft-gray text-secondary-dark font-semibold">
-                {productList.map((p) => (
+                {products.map((p) => (
                   <tr key={p.id} className="hover:bg-soft-gray/30 transition-colors">
                     <td className="py-4 px-6">
                       <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg border border-soft-gray" />
@@ -153,15 +148,17 @@ export const AdminProducts = ({ onShowToast }) => {
                     <td className="py-4 px-6">{formatPrice(p.price)}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                        p.stockStatus === 'In Stock' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        p.disabled ? 'bg-rose-100 text-rose-800' : (p.stockStatus === 'In Stock' ? 'bg-emerald-100 text-emerald-800' : (p.stockStatus === 'Low Stock' ? 'bg-amber-100 text-amber-850' : 'bg-rose-100 text-rose-800'))
                       }`}>
-                        {p.stockStatus === 'In Stock' ? 'In Stock' : 'Out of Stock'}
+                        {p.disabled ? 'Disabled' : p.stockStatus}
                       </span>
                     </td>
+                    <td className="py-4 px-6 font-bold">{p.stock !== undefined ? p.stock : 25} bags</td>
                     <td className="py-4 px-6 italic text-secondary/70">{p.tasteProfile}</td>
                     <td className="py-4 px-6">
                       <div className="flex items-center justify-center gap-3">
                         <button onClick={() => handleEditProductClick(p)} className="p-2 text-secondary hover:text-primary transition-colors cursor-pointer" title="Edit"><FaEdit /></button>
+                        <button onClick={() => { disableProduct(p.id); if (onShowToast) onShowToast(p.disabled ? "Product enabled successfully" : "Product disabled successfully", "success"); }} className={`p-2 transition-colors cursor-pointer ${p.disabled ? 'text-emerald-600 hover:text-emerald-850' : 'text-amber-500 hover:text-amber-700'}`} title={p.disabled ? "Enable product" : "Disable product"}>{p.disabled ? <FaCheck /> : <FaBan />}</button>
                         <button onClick={() => handleDeleteProduct(p.id)} className="p-2 text-rose-500 hover:text-rose-700 transition-colors cursor-pointer" title="Delete"><FaTrash /></button>
                       </div>
                     </td>
@@ -211,15 +208,15 @@ export const AdminProducts = ({ onShowToast }) => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block">Packaging Bag Weight *</label>
-                  <select
-                    value={bagSize}
-                    onChange={(e) => setBagSize(e.target.value)}
-                    className="w-full bg-soft-gray border border-secondary/15 rounded-xl px-3 py-2.5"
-                  >
-                    <option value="5kg">5kg</option>
-                    <option value="10kg">10kg</option>
-                  </select>
+                  <label className="block">Current Stock Count (Bags) *</label>
+                  <input
+                    type="number"
+                    value={stock}
+                    onChange={(e) => setStock(e.target.value)}
+                    className="w-full bg-soft-gray border border-secondary/15 rounded-xl px-4 py-2.5 outline-none"
+                    placeholder="e.g. 25"
+                    required
+                  />
                 </div>
               </div>
 
@@ -252,16 +249,18 @@ export const AdminProducts = ({ onShowToast }) => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block">Stock Status *</label>
-                <select
-                  value={stockStatus}
-                  onChange={(e) => setStockStatus(e.target.value)}
-                  className="w-full bg-soft-gray border border-secondary/15 rounded-xl px-3 py-2.5"
-                >
-                  <option value="In Stock">In Stock</option>
-                  <option value="Out of Stock">Out of Stock</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 col-span-2">
+                  <label className="block">Packaging Bag Weight *</label>
+                  <select
+                    value={bagSize}
+                    onChange={(e) => setBagSize(e.target.value)}
+                    className="w-full bg-soft-gray border border-secondary/15 rounded-xl px-3 py-2.5"
+                  >
+                    <option value="5kg">5kg</option>
+                    <option value="10kg">10kg</option>
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-1">

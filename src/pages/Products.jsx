@@ -5,10 +5,11 @@ import CategoryFilter from '../components/CategoryFilter';
 import TasteFilter from '../components/TasteFilter';
 import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
-import { products } from '../data/products';
+import { useStore } from '../context/StoreContext';
 import { FaSlidersH } from 'react-icons/fa';
 
 export const Products = ({ onShowToast }) => {
+  const { products } = useStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedProduct, setSelectedProduct] = useState(null);
 
@@ -57,6 +58,7 @@ export const Products = ({ onShowToast }) => {
 
   // Filter logic
   const filteredProducts = products.filter(p => {
+    if (p.disabled) return false;
     const matchesSearch = searchQuery
       ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.origin.toLowerCase().includes(searchQuery.toLowerCase()) ||

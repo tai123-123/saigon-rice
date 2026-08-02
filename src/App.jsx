@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { StoreProvider } from './context/StoreContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AppRouter from './router/AppRouter';
@@ -19,31 +20,33 @@ function App() {
   };
 
   return (
-    <AuthProvider>
-      <CartProvider>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          
-          {/* Main Content Area */}
-          <main className="flex-grow">
-            <AppRouter onShowToast={showToast} />
-          </main>
+    <StoreProvider>
+      <AuthProvider>
+        <CartProvider>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            
+            {/* Main Content Area */}
+            <main className="flex-grow">
+              <AppRouter onShowToast={showToast} />
+            </main>
 
-          <Footer />
+            <Footer />
 
-          {/* Toast Notification Container */}
-          <AnimatePresence>
-            {toast.show && (
-              <Toast
-                message={toast.message}
-                type={toast.type}
-                onClose={closeToast}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-      </CartProvider>
-    </AuthProvider>
+            {/* Toast Notification Container */}
+            <AnimatePresence>
+              {toast.show && (
+                <Toast
+                  message={toast.message}
+                  type={toast.type}
+                  onClose={closeToast}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        </CartProvider>
+      </AuthProvider>
+    </StoreProvider>
   );
 }
 

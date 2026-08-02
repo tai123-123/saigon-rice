@@ -1,95 +1,41 @@
 import React, { useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { useAuth } from '../../context/AuthContext';
+import { useStore } from '../../context/StoreContext';
 import { FaEye, FaEdit, FaTrash, FaPrint, FaSearch, FaTimes, FaFileAlt } from 'react-icons/fa';
 
 export const AdminOrders = ({ onShowToast }) => {
-  const { users, updateProfile } = useAuth();
+  const { orders, updateOrderStatus, deleteOrder } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [statusToUpdate, setStatusToUpdate] = useState('');
 
-  // Extract all orders
-  const allOrders = users.reduce((acc, user) => {
-    if (user.orders) {
-      const userOrders = user.orders.map(o => ({
-        ...o,
-        customerName: user.fullName,
-        phone: user.phone,
-        email: user.email,
-        customerRef: user
-      }));
-      return [...acc, ...userOrders];
-    }
-    return acc;
-  }, []);
-
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
   const handleUpdateStatus = (orderId, nextStatus) => {
-    // Find the user who owns this order
-    const orderToFind = allOrders.find(o => o.id === orderId);
-    if (!orderToFind) return;
-
-    const owner = orderToFind.customerRef;
-    const updatedOrders = owner.orders.map(o => 
-      o.id === orderId ? { ...o, status: nextStatus } : o
-    );
-
-    // Persist in users list
-    const updatedUsersList = users.map(u => 
-      u.email === owner.email ? { ...u, orders: updatedOrders } : u
-    );
-
-    // Save profile or save to context
-    localStorage.setItem('saigon_rice_all_users', JSON.stringify(updatedUsersList));
-    // Trigger sync
-    const currentUserSession = JSON.parse(localStorage.getItem('saigon_rice_user'));
-    if (currentUserSession && currentUserSession.email === owner.email) {
-      localStorage.setItem('saigon_rice_user', JSON.stringify({ ...currentUserSession, orders: updatedOrders }));
-    }
-
+    updateOrderStatus(orderId, nextStatus);
     if (onShowToast) onShowToast(`Order #${orderId} status updated to ${nextStatus}`, 'success');
     setSelectedOrder(null);
-    window.location.reload(); // Quick refresh to sync context values
   };
 
   const handleDeleteOrder = (orderId) => {
     if (!window.confirm("Are you sure you want to delete this order record?")) return;
-
-    const orderToFind = allOrders.find(o => o.id === orderId);
-    if (!orderToFind) return;
-
-    const owner = orderToFind.customerRef;
-    const updatedOrders = owner.orders.filter(o => o.id !== orderId);
-
-    const updatedUsersList = users.map(u => 
-      u.email === owner.email ? { ...u, orders: updatedOrders } : u
-    );
-
-    localStorage.setItem('saigon_rice_all_users', JSON.stringify(updatedUsersList));
-    const currentUserSession = JSON.parse(localStorage.getItem('saigon_rice_user'));
-    if (currentUserSession && currentUserSession.email === owner.email) {
-      localStorage.setItem('saigon_rice_user', JSON.stringify({ ...currentUserSession, orders: updatedOrders }));
-    }
-
+    deleteOrder(orderId);
     if (onShowToast) onShowToast(`Order #${orderId} has been deleted.`, 'info');
-    window.location.reload();
   };
 
   // Filter orders
-  const filteredOrders = allOrders.filter(o => {
+  const filteredOrders = orders.filter(o => {
     const matchesSearch = searchQuery
       ? o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.phone.includes(searchQuery)
+        o.customerPhone.includes(searchQuery)
       : true;
 
-    const matchesStatus = statusFilter === 'All' ? true : o.status === statusFilter;
+    const matchesStatus = statusFilter === 'All' ? true : o.orderStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -157,19 +103,19 @@ export const AdminOrders = ({ onShowToast }) => {
                     <td className="py-4 px-6 text-primary">#{o.id}</td>
                     <td className="py-4 px-6">
                       <span className="block">{o.customerName}</span>
-                      <span className="text-[10px] text-secondary/50 font-normal">{o.phone}</span>
+                      <span className="text-[10px] text-secondary/50 font-normal">{o.customerPhone}</span>
                     </td>
                     <td className="py-4 px-6 max-w-xs truncate">
                       {o.items.map(it => `${it.name} (${it.quantity})`).join(', ')}
                     </td>
-                    <td className="py-4 px-6">{formatPrice(o.total)}</td>
+                    <td className="py-4 px-6">{formatPrice(o.totalAmount)}</td>
                     <td className="py-4 px-6 text-[10px] uppercase font-bold">{o.paymentMethod}</td>
-                    <td className="py-4 px-6 font-normal">{o.date}</td>
+                    <td className="py-4 px-6 font-normal">{o.orderDate}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                        o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        o.orderStatus === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                       }`}>
-                        {o.status}
+                        {o.orderStatus}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -203,29 +149,28 @@ export const AdminOrders = ({ onShowToast }) => {
             
             <div className="text-xs space-y-2 text-secondary-dark/95">
               <p>Customer: <strong>{selectedOrder.customerName}</strong></p>
-              <p>Address: <strong>{selectedOrder.address}</strong></p>
-              <p>Current Status: <strong className="text-primary">{selectedOrder.status}</strong></p>
+              <p>Address: <strong>{selectedOrder.shippingAddress}</strong></p>
+              <p>Current Status: <strong className="text-primary">{selectedOrder.orderStatus}</strong></p>
             </div>
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-secondary-dark block">Update Delivery Status:</label>
               <select
-                value={statusToUpdate || selectedOrder.status}
+                value={statusToUpdate || selectedOrder.orderStatus}
                 onChange={(e) => setStatusToUpdate(e.target.value)}
                 className="w-full bg-soft-gray border border-secondary/15 rounded-xl px-3 py-2.5 text-xs text-secondary-dark focus:outline-none"
               >
-                <option value="Pending Order">Pending Order</option>
+                <option value="Pending">Pending</option>
                 <option value="Confirmed">Confirmed</option>
-                <option value="Preparing Order">Preparing Order</option>
-                <option value="Out for Delivery">Out for Delivery</option>
-                <option value="Nearby">Nearby</option>
+                <option value="Preparing">Preparing</option>
+                <option value="Shipping">Shipping</option>
                 <option value="Delivered">Delivered</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
 
             <button
-              onClick={() => handleUpdateStatus(selectedOrder.id, statusToUpdate || selectedOrder.status)}
+              onClick={() => handleUpdateStatus(selectedOrder.id, statusToUpdate || selectedOrder.orderStatus)}
               className="w-full bg-primary hover:bg-primary-light text-white font-bold text-xs py-3.5 rounded-full shadow transition-all cursor-pointer"
             >
               Save Delivery Status
@@ -258,12 +203,12 @@ export const AdminOrders = ({ onShowToast }) => {
                 <div>
                   <span className="block font-bold text-secondary/50 uppercase">Customer details:</span>
                   <strong>{invoiceOrder.customerName}</strong><br />
-                  Phone: {invoiceOrder.phone}<br />
-                  Email: {invoiceOrder.email}
+                  Phone: {invoiceOrder.customerPhone}<br />
+                  Email: {invoiceOrder.customerEmail}
                 </div>
                 <div>
                   <span className="block font-bold text-secondary/50 uppercase">Delivery address:</span>
-                  {invoiceOrder.address}
+                  {invoiceOrder.shippingAddress}
                 </div>
               </div>
 
@@ -290,7 +235,7 @@ export const AdminOrders = ({ onShowToast }) => {
 
               <div className="flex justify-between items-center text-xs font-bold text-secondary-dark pt-1">
                 <span>Total Payment:</span>
-                <span className="text-primary font-black text-sm">{formatPrice(invoiceOrder.total)}</span>
+                <span className="text-primary font-black text-sm">{formatPrice(invoiceOrder.totalAmount)}</span>
               </div>
             </div>
 

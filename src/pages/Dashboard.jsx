@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useStore } from '../context/StoreContext';
 import { products } from '../data/products';
 import SubscriptionCard from '../components/SubscriptionCard';
 import DeliveryTracker from '../components/DeliveryTracker';
@@ -8,6 +9,8 @@ import { FaUser, FaHistory, FaCalendarAlt, FaMapMarkerAlt, FaEdit, FaTimesCircle
 
 export const Dashboard = ({ onShowToast }) => {
   const { currentUser, updateProfile } = useAuth();
+  const { orders, updateOrderStatus } = useStore();
+  const customerOrders = orders.filter(o => o.customerEmail === currentUser.email);
   const [activeTab, setActiveTab] = useState('orders');
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -16,7 +19,7 @@ export const Dashboard = ({ onShowToast }) => {
 
   const [newAddress, setNewAddress] = useState('');
   const [trackingOrderId, setTrackingOrderId] = useState(() => {
-    return currentUser.orders?.[0]?.id || null;
+    return customerOrders[0]?.id || null;
   });
 
   const formatPrice = (price) => {
@@ -129,7 +132,7 @@ export const Dashboard = ({ onShowToast }) => {
     return 'Monthly';
   };
 
-  const activeTrackingOrder = currentUser.orders?.find(o => o.id === trackingOrderId);
+  const activeTrackingOrder = customerOrders.find(o => o.id === trackingOrderId);
 
   return (
     <div className="py-12 bg-soft-gray/10 min-h-screen text-left">
@@ -305,21 +308,18 @@ export const Dashboard = ({ onShowToast }) => {
               </div>
             )}
 
-            {/* Orders Panel */}
+             {/* Orders Panel */}
             {activeTab === 'orders' && (
               <div className="space-y-6">
                 
-                {activeTrackingOrder && (activeTrackingOrder.status !== 'Delivered') && (
+                {activeTrackingOrder && (activeTrackingOrder.orderStatus !== 'Delivered') && (
                   <div className="space-y-3">
                     <span className="text-[10px] font-black text-primary uppercase tracking-widest block">Live Shipment Tracking</span>
                     <DeliveryTracker 
                       orderId={activeTrackingOrder.id}
-                      address={activeTrackingOrder.address}
+                      address={activeTrackingOrder.shippingAddress}
                       onFinished={() => {
-                        const updatedOrders = currentUser.orders.map(o => 
-                          o.id === activeTrackingOrder.id ? { ...o, status: 'Delivered' } : o
-                        );
-                        updateProfile({ orders: updatedOrders });
+                        updateOrderStatus(activeTrackingOrder.id, 'Delivered');
                         if (onShowToast) onShowToast('Package delivered successfully!', 'success');
                       }}
                     />
@@ -329,16 +329,16 @@ export const Dashboard = ({ onShowToast }) => {
                 <div className="bg-white rounded-3xl p-8 border border-secondary/5 shadow-sm space-y-6">
                   <h3 className="font-bold text-sm text-secondary-dark m-0 uppercase tracking-wide">Transaction History</h3>
                   
-                  {currentUser.orders && currentUser.orders.length > 0 ? (
+                  {customerOrders.length > 0 ? (
                     <div className="divide-y divide-soft-gray">
-                      {currentUser.orders.map((o) => (
+                      {customerOrders.map((o) => (
                         <div key={o.id} className="py-5 first:pt-0 space-y-3 text-xs font-semibold">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-secondary-dark">
                             <div>
-                              Order: <strong className="text-primary">#{o.id}</strong> <span className="text-secondary/40 font-medium">| Date: {o.date}</span>
+                              Order: <strong className="text-primary">#{o.id}</strong> <span className="text-secondary/40 font-medium">| Date: {o.orderDate}</span>
                             </div>
                             <div className="flex gap-2">
-                              {o.status !== 'Delivered' && (
+                              {o.orderStatus !== 'Delivered' && (
                                 <button
                                   onClick={() => setTrackingOrderId(o.id)}
                                   className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-1 cursor-pointer"
@@ -347,11 +347,11 @@ export const Dashboard = ({ onShowToast }) => {
                                 </button>
                               )}
                               <span className={`px-3 py-1 rounded-full text-[10px] ${
-                                o.status === 'Delivered' 
+                                o.orderStatus === 'Delivered' 
                                   ? 'bg-emerald-100 text-emerald-800' 
                                   : 'bg-amber-100 text-amber-800'
                               }`}>
-                                {o.status === 'Delivered' ? 'Delivered' : 'In Transit'}
+                                {o.orderStatus}
                               </span>
                             </div>
                           </div>
@@ -367,7 +367,7 @@ export const Dashboard = ({ onShowToast }) => {
 
                           <div className="flex justify-between items-center text-xs pt-1">
                             <span className="text-secondary/60">Method: {o.paymentMethod === 'COD' ? 'Cash on delivery' : 'Vietcombank bank wire'}</span>
-                            <span className="text-secondary-dark">Total: <strong className="text-primary text-sm font-black">{formatPrice(o.total)}</strong></span>
+                            <span className="text-secondary-dark">Total: <strong className="text-primary text-sm font-black">{formatPrice(o.totalAmount)}</strong></span>
                           </div>
                         </div>
                       ))}

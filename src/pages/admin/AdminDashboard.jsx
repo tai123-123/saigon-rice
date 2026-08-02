@@ -1,60 +1,40 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { products } from '../../data/products';
-import { useAuth } from '../../context/AuthContext';
+import { useStore } from '../../context/StoreContext';
 import { 
   FaShoppingBag, FaDollarSign, FaUsers, FaBoxOpen, 
   FaClock, FaCheckCircle, FaChartBar, FaCalendarCheck,
-  FaArrowUp, FaArrowDown 
+  FaArrowUp, FaTimesCircle, FaBan, FaHourglassHalf, FaExclamationTriangle
 } from 'react-icons/fa';
 
 export const AdminDashboard = () => {
-  const { users } = useAuth();
+  const { orders, products, subscriptions, customers, getStats } = useStore();
+  const stats = getStats();
 
-  // Aggregate stats from LocalStorage/States
-  const customers = users.filter(u => u.role !== 'admin');
-  
-  // Flatten orders from all users
-  const allOrders = users.reduce((acc, user) => {
-    if (user.orders) {
-      const userOrdersWithCustomer = user.orders.map(o => ({
-        ...o,
-        customerName: user.fullName,
-        phone: user.phone
-      }));
-      return [...acc, ...userOrdersWithCustomer];
-    }
-    return acc;
-  }, []);
-
-  const totalRevenue = allOrders.reduce((sum, o) => sum + o.total, 0);
-  const pendingOrders = allOrders.filter(o => o.status !== 'Delivered').length;
-  const completedOrders = allOrders.filter(o => o.status === 'Delivered').length;
-  
-  // Subscriptions count
-  const activeSubsCount = users.reduce((acc, user) => {
-    if (user.subscriptions) {
-      const activeUserSubs = user.subscriptions.filter(s => s.status === 'Active');
-      return acc + activeUserSubs.length;
-    }
-    return acc;
-  }, 0);
-
-  // Format helper
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-  const stats = [
-    { label: "Total Orders", val: allOrders.length, trend: allOrders.length > 0 ? "+12.5%" : "0%", up: true, icon: <FaShoppingBag />, color: "bg-emerald-500/10 text-emerald-600" },
-    { label: "Total Revenue", val: formatPrice(totalRevenue), trend: totalRevenue > 0 ? "+8.3%" : "0%", up: true, icon: <FaDollarSign />, color: "bg-amber-500/10 text-amber-600" },
-    { label: "Total Customers", val: customers.length, trend: customers.length > 0 ? "+4.1%" : "0%", up: true, icon: <FaUsers />, color: "bg-indigo-500/10 text-indigo-600" },
-    { label: "Total Grains Catalog", val: products.length, trend: "Stable", up: true, icon: <FaBoxOpen />, color: "bg-blue-500/10 text-blue-600" },
-    { label: "Pending Shipments", val: pendingOrders, trend: pendingOrders > 0 ? "-2.4%" : "0%", up: false, icon: <FaClock />, color: "bg-rose-500/10 text-rose-600" },
-    { label: "Completed Orders", val: completedOrders, trend: completedOrders > 0 ? "+14.2%" : "0%", up: true, icon: <FaCheckCircle />, color: "bg-teal-500/10 text-teal-600" },
-    { label: "Monthly Sales Target", val: "84%", trend: "+5.0%", up: true, icon: <FaChartBar />, color: "bg-purple-500/10 text-purple-600" },
-    { label: "Active Subscriptions", val: activeSubsCount, trend: activeSubsCount > 0 ? "+10%" : "0%", up: true, icon: <FaCalendarCheck />, color: "bg-cyan-500/10 text-cyan-600" }
+  const dashboardCards = [
+    { label: "Total Revenue", val: formatPrice(stats.totalRevenue), desc: "Completed orders only", icon: <FaDollarSign />, color: "bg-emerald-500/10 text-emerald-600" },
+    { label: "Today's Revenue", val: formatPrice(stats.todayRevenue), desc: "Today's completed orders", icon: <FaDollarSign />, color: "bg-amber-500/10 text-amber-600" },
+    { label: "Monthly Revenue", val: formatPrice(stats.monthlyRevenue), desc: "Current month revenue", icon: <FaDollarSign />, color: "bg-indigo-500/10 text-indigo-600" },
+    { label: "Average Order Value", val: formatPrice(stats.averageOrderValue), desc: "Avg completed order value", icon: <FaChartBar />, color: "bg-purple-500/10 text-purple-600" },
+
+    { label: "Total Orders", val: stats.totalOrders, desc: "All system orders", icon: <FaShoppingBag />, color: "bg-blue-500/10 text-blue-600" },
+    { label: "Completed Orders", val: stats.completedOrders, desc: "Delivered status", icon: <FaCheckCircle />, color: "bg-teal-500/10 text-teal-600" },
+    { label: "Pending Orders", val: stats.pendingOrders, desc: "Processing/Shipping status", icon: <FaHourglassHalf />, color: "bg-yellow-500/10 text-yellow-600" },
+    { label: "Cancelled Orders", val: stats.cancelledOrders, desc: "Cancelled status", icon: <FaTimesCircle />, color: "bg-rose-500/10 text-rose-600" },
+
+    { label: "Today's Orders", val: stats.todayOrders, desc: "Placed today", icon: <FaClock />, color: "bg-cyan-500/10 text-cyan-600" },
+    { label: "Monthly Orders", val: stats.monthlyOrders, desc: "Placed this month", icon: <FaClock />, color: "bg-sky-500/10 text-sky-600" },
+    { label: "Registered Customers", val: customers.length, desc: "Registered accounts", icon: <FaUsers />, color: "bg-violet-500/10 text-violet-600" },
+    { label: "Active Subscriptions", val: subscriptions.filter(s => s.status === 'Active').length, desc: "Active auto-delivery", icon: <FaCalendarCheck />, color: "bg-teal-500/10 text-teal-600" },
+
+    { label: "Products Catalog", val: stats.totalProducts, desc: "Rice grain varieties", icon: <FaBoxOpen />, color: "bg-orange-500/10 text-orange-600" },
+    { label: "Low Stock Items", val: stats.lowStockProducts, desc: "Below 5 bags warning", icon: <FaExclamationTriangle />, color: "bg-amber-500/10 text-amber-600" },
+    { label: "Out of Stock Items", val: stats.outOfStockProducts, desc: "0 bags left", icon: <FaBan />, color: "bg-rose-500/10 text-rose-600" }
   ];
 
   return (
@@ -63,25 +43,21 @@ export const AdminDashboard = () => {
         
         {/* Title */}
         <div className="text-left space-y-1">
-          <h2 className="text-2xl font-bold font-serif text-secondary-dark m-0">Admin Dashboard Overview</h2>
+          <h2 className="text-2xl font-bold font-serif text-secondary-dark m-0">Shopify-grade Administration Overview</h2>
           <p className="text-xs text-secondary/60 m-0">Real-time indicators showing store sales metrics, inventory catalog, and shipment queues.</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((card, idx) => (
-            <div key={idx} className="bg-white rounded-3xl p-6 border border-secondary/10 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {dashboardCards.map((card, idx) => (
+            <div key={idx} className="bg-white rounded-3xl p-5 border border-secondary/10 shadow-xs flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-secondary/60 uppercase tracking-wider">{card.label}</span>
-                <div className={`p-3 rounded-2xl ${card.color}`}>{card.icon}</div>
+                <span className="text-[10px] font-black text-secondary/50 uppercase tracking-wider">{card.label}</span>
+                <div className={`p-2.5 rounded-xl ${card.color} text-xs`}>{card.icon}</div>
               </div>
-              <div className="flex items-baseline justify-between pt-1">
-                <span className="text-xl sm:text-2xl font-black text-secondary-dark">{card.val}</span>
-                <span className={`text-[10px] font-bold flex items-center gap-0.5 ${
-                  card.up ? 'text-emerald-600' : 'text-rose-500'
-                }`}>
-                  {card.up ? <FaArrowUp size={8} /> : <FaArrowDown size={8} />} {card.trend}
-                </span>
+              <div className="flex flex-col text-left">
+                <span className="text-xl font-black text-secondary-dark leading-tight">{card.val}</span>
+                <span className="text-[9px] text-secondary/40 font-medium mt-0.5">{card.desc}</span>
               </div>
             </div>
           ))}
@@ -92,7 +68,7 @@ export const AdminDashboard = () => {
           {/* Recent Orders table widget */}
           <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-secondary/10 shadow-sm space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Recent Order Activity</h3>
+              <h3 className="font-bold text-xs text-secondary-dark uppercase tracking-wider m-0">Recent Order Activity</h3>
               <Link to="/admin/orders" className="text-xs font-bold text-primary hover:underline">View All Orders</Link>
             </div>
             
@@ -107,21 +83,21 @@ export const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-soft-gray font-semibold text-secondary-dark">
-                  {allOrders.slice(0, 5).map((o, idx) => (
+                  {orders.slice(0, 5).map((o, idx) => (
                     <tr key={idx} className="hover:bg-soft-gray/30 transition-colors">
                       <td className="py-3.5 pl-1 text-primary">#{o.id}</td>
                       <td>{o.customerName}</td>
-                      <td>{formatPrice(o.total)}</td>
+                      <td>{formatPrice(o.totalAmount)}</td>
                       <td>
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                          o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          o.orderStatus === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {o.status}
+                          {o.orderStatus}
                         </span>
                       </td>
                     </tr>
                   ))}
-                  {allOrders.length === 0 && (
+                  {orders.length === 0 && (
                     <tr>
                       <td colSpan="4" className="py-6 text-center text-secondary/50 italic font-medium">No order activity logged yet.</td>
                     </tr>
@@ -133,7 +109,7 @@ export const AdminDashboard = () => {
 
           {/* Quick actions panel */}
           <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-secondary/10 shadow-sm space-y-4">
-            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Seller Console Shortcuts</h3>
+            <h3 className="font-bold text-xs text-secondary-dark uppercase tracking-wider m-0 text-left">Seller Console Shortcuts</h3>
             
             <div className="flex flex-col gap-2">
               <Link to="/admin/products" className="py-3 px-4 bg-primary/5 hover:bg-primary/10 border border-primary/10 rounded-2xl text-xs font-bold text-primary flex items-center justify-between transition-colors">

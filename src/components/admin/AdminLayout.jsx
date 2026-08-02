@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useStore } from '../../context/StoreContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaChartLine, FaShoppingBag, FaBoxOpen, FaUsers, FaWarehouse, 
@@ -23,13 +24,7 @@ export const AdminLayout = ({ children }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // Mock Notifications for admin dashboard
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "New Order #SGR-192848 received", type: "order", read: false },
-    { id: 2, text: "Low inventory warning: ST25 Premium (Only 3 bags left)", type: "inventory", read: false },
-    { id: 3, text: "New customer registered: Sarah Jenkins", type: "customer", read: true },
-    { id: 4, text: "Subscription renewed for Small Family Plan - John D.", type: "subscription", read: true }
-  ]);
+  const { notifications, markAllNotificationsRead } = useStore();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -50,8 +45,8 @@ export const AdminLayout = ({ children }) => {
     { label: "Settings", path: "/admin/settings", icon: <FaCog /> }
   ];
 
-  const handleNotificationClick = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const handleNotificationClick = () => {
+    markAllNotificationsRead();
   };
 
   const formatDate = (date) => {
@@ -232,13 +227,14 @@ export const AdminLayout = ({ children }) => {
                         {notifications.map(n => (
                           <button
                             key={n.id}
-                            onClick={() => handleNotificationClick(n.id)}
-                            className={`w-full text-left px-4 py-3 hover:bg-soft-gray flex flex-col gap-1 transition-colors ${
+                            onClick={handleNotificationClick}
+                            className={`w-full text-left px-4 py-3 hover:bg-soft-gray flex flex-col gap-0.5 transition-colors ${
                               !n.read ? 'bg-primary/5' : ''
                             }`}
                           >
-                            <span className={`text-[11px] font-semibold ${!n.read ? 'text-primary' : 'text-secondary-dark'}`}>{n.text}</span>
-                            <span className="text-[9px] text-secondary/40 font-bold uppercase">{n.type}</span>
+                            <span className={`text-[11px] font-bold ${!n.read ? 'text-primary' : 'text-secondary-dark'}`}>{n.title}</span>
+                            <span className="text-[10px] text-secondary-dark/85 font-light leading-relaxed">{n.message}</span>
+                            <span className="text-[8px] text-secondary/40 font-bold uppercase">{n.type}</span>
                           </button>
                         ))}
                       </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { products } from '../data/products';
+import { useStore } from '../context/StoreContext';
 import { useCart } from '../context/CartContext';
 import { FaStar, FaShoppingBasket, FaArrowLeft, FaUtensils } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 
 export const ProductDetail = ({ onShowToast }) => {
   const { id } = useParams();
+  const { products } = useStore();
   const { addToCart } = useCart();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -19,7 +20,7 @@ export const ProductDetail = ({ onShowToast }) => {
       setActiveImage(found.image);
       setQuantity(1);
     }
-  }, [id]);
+  }, [id, products]);
 
   if (!product) {
     return (
@@ -39,6 +40,12 @@ export const ProductDetail = ({ onShowToast }) => {
   };
 
   const handleAddToCart = () => {
+    if (quantity > product.stock) {
+      if (onShowToast) {
+        onShowToast(`Only ${product.stock} bag(s) available in stock!`, 'error');
+      }
+      return;
+    }
     addToCart(product, quantity);
     if (onShowToast) {
       onShowToast(`Added ${quantity} bag(s) of ${product.name} to cart!`, 'success');

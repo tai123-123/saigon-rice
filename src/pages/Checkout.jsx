@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useStore } from '../context/StoreContext';
 import { FaMoneyBillWave, FaUniversity, FaQrcode, FaCheckCircle, FaLock, FaArrowLeft } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Checkout = ({ onShowToast }) => {
   const { cartItems, total, subtotal, discountAmount, deliveryFee, vat, clearCart } = useCart();
   const { currentUser, updateProfile } = useAuth();
+  const { placeOrder } = useStore();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState(currentUser?.fullName || '');
@@ -47,7 +49,19 @@ export const Checkout = ({ onShowToast }) => {
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const orderId = 'SGR-' + Math.floor(100000 + Math.random() * 900000);
+      const orderId = placeOrder({
+        fullName,
+        phone,
+        email,
+        address,
+        items: cartItems,
+        subtotal,
+        deliveryFee,
+        vat,
+        total,
+        paymentMethod
+      });
+
       const newOrder = {
         id: orderId,
         date: new Date().toISOString().split('T')[0],
@@ -55,7 +69,7 @@ export const Checkout = ({ onShowToast }) => {
         total: total,
         address: address,
         paymentMethod: paymentMethod,
-        status: 'Preparing Order'
+        status: 'Pending'
       };
 
       const userOrders = currentUser.orders || [];

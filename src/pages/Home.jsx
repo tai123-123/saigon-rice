@@ -6,13 +6,14 @@ import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
 import Testimonials from '../components/Testimonials';
 import Newsletter from '../components/Newsletter';
-import { products } from '../data/products';
+import { useStore } from '../context/StoreContext';
 import { FaLeaf, FaTruck, FaAward, FaUserCheck, FaChevronRight } from 'react-icons/fa';
 
 export const Home = ({ onShowToast }) => {
+  const { products } = useStore();
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const featuredProducts = products.filter(p => p.discount > 0 || p.rating >= 4.9).slice(0, 4);
+  const featuredProducts = products.filter(p => !p.disabled && (p.discount > 0 || p.rating >= 4.9)).slice(0, 4);
 
   const features = [
     {

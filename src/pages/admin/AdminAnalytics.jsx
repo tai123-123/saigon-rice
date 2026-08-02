@@ -1,59 +1,109 @@
 import React from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { useStore } from '../../context/StoreContext';
 import { 
   ResponsiveContainer, LineChart, Line, BarChart, Bar, 
   PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, AreaChart, Area 
 } from 'recharts';
 
 export const AdminAnalytics = () => {
+  const { orders, products } = useStore();
+
   // 1. Monthly Revenue & Orders (Line Chart)
-  const monthlyData = [
-    { name: 'Jan', revenue: 12000000, orders: 45 },
-    { name: 'Feb', revenue: 15400000, orders: 58 },
-    { name: 'Mar', revenue: 14200000, orders: 52 },
-    { name: 'Apr', revenue: 19800000, orders: 74 },
-    { name: 'May', revenue: 21500000, orders: 82 },
-    { name: 'Jun', revenue: 18900000, orders: 69 },
-    { name: 'Jul', revenue: 24500000, orders: 95 },
-    { name: 'Aug', revenue: 28450000, orders: 110 }
-  ];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthlyMap = {};
+  
+  // Seed some fallback visual curve if empty
+  if (orders.length === 0) {
+    monthlyMap['Aug'] = { revenue: 0, orders: 0 };
+  }
+
+  orders.forEach(o => {
+    if (!o.orderDate) return;
+    const monthIdx = new Date(o.orderDate).getMonth();
+    const monthName = months[monthIdx];
+    if (!monthlyMap[monthName]) {
+      monthlyMap[monthName] = { revenue: 0, orders: 0 };
+    }
+    monthlyMap[monthName].revenue += o.totalAmount;
+    monthlyMap[monthName].orders += 1;
+  });
+
+  const monthlyData = months.map(m => ({
+    name: m,
+    revenue: monthlyMap[m]?.revenue || 0,
+    orders: monthlyMap[m]?.orders || 0
+  })).filter((m, idx) => {
+    // Only show months up to current month (August = index 7) to keep chart focused
+    return idx <= new Date().getMonth();
+  });
 
   // 2. Best-selling Products (Bar Chart)
-  const productSales = [
-    { name: 'ST25 Premium', sales: 185 },
-    { name: 'ST25 Organic', sales: 124 },
-    { name: 'Jasmine Royal', sales: 98 },
-    { name: 'Red Brown Upland', sales: 84 },
-    { name: 'Ba Tri Sticky', sales: 76 }
-  ];
+  const productSales = products
+    .map(p => ({
+      name: p.name.split(' (')[0],
+      sales: p.sales || 0
+    }))
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5);
 
   // 3. Category Distribution (Pie Chart)
-  const categoryData = [
-    { name: 'ST Rice', value: 45 },
-    { name: 'Jasmine Rice', value: 25 },
-    { name: 'Brown Rice', value: 18 },
-    { name: 'Sticky Rice', value: 12 }
+  const categories = ['ST Rice', 'Jasmine Rice', 'Brown Rice', 'Sticky Rice'];
+  const categoryMap = {};
+  categories.forEach(c => { categoryMap[c] = 0; });
+  products.forEach(p => {
+    if (categoryMap[p.category] !== undefined) {
+      categoryMap[p.category] += p.sales || 0;
+    }
+  });
+  const categoryData = categories.map(c => ({
+    name: c,
+    value: categoryMap[c] || 0
+  })).filter(c => c.value > 0);
+
+  // Fallback category visual data if no sales yet
+  const displayCategoryData = categoryData.length > 0 ? categoryData : [
+    { name: 'ST Rice', value: 1 },
+    { name: 'Jasmine Rice', value: 1 },
+    { name: 'Brown Rice', value: 1 },
+    { name: 'Sticky Rice', value: 1 }
   ];
 
-  // 4. Order Status breakdown (Doughnut Chart)
-  const orderStatusData = [
-    { name: 'Delivered', value: 65 },
-    { name: 'Shipping', value: 15 },
-    { name: 'Preparing', value: 12 },
-    { name: 'Pending', value: 5 },
-    { name: 'Cancelled', value: 3 }
+  // 4. Order Status breakdown (Pie/Doughnut Chart)
+  const statuses = ['Pending', 'Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Cancelled'];
+  const statusMap = {};
+  statuses.forEach(s => { statusMap[s] = 0; });
+  orders.forEach(o => {
+    if (statusMap[o.orderStatus] !== undefined) {
+      statusMap[o.orderStatus] += 1;
+    }
+  });
+  const orderStatusData = statuses.map(s => ({
+    name: s,
+    value: statusMap[s] || 0
+  })).filter(s => s.value > 0);
+
+  // Fallback status visual data if no orders yet
+  const displayOrderStatusData = orderStatusData.length > 0 ? orderStatusData : [
+    { name: 'No Orders', value: 1 }
   ];
 
   // 5. Weekly Revenue (Area Chart)
-  const weeklyData = [
-    { day: 'Mon', revenue: 2100000 },
-    { day: 'Tue', revenue: 3400000 },
-    { day: 'Wed', revenue: 1800000 },
-    { day: 'Thu', revenue: 4200000 },
-    { day: 'Fri', revenue: 5100000 },
-    { day: 'Sat', revenue: 6800000 },
-    { day: 'Sun', revenue: 5900000 }
-  ];
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weeklyMap = {};
+  days.forEach(d => { weeklyMap[d] = 0; });
+  orders.forEach(o => {
+    if (!o.orderDate) return;
+    const dayIdx = new Date(o.orderDate).getDay();
+    // JS getDay(): 0 is Sunday, 1 is Monday...
+    const dayMapIdx = dayIdx === 0 ? 6 : dayIdx - 1;
+    const dayName = days[dayMapIdx];
+    weeklyMap[dayName] += o.totalAmount;
+  });
+  const weeklyData = days.map(d => ({
+    day: d,
+    revenue: weeklyMap[d]
+  }));
 
   const COLORS = ['#1b4332', '#2e7d32', '#d4af37', '#6e5044', '#e11d48'];
 
@@ -97,86 +147,101 @@ export const AdminAnalytics = () => {
             <div className="h-72 w-full text-xs">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={weeklyData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1b4332" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#1b4332" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <XAxis dataKey="day" stroke="#6e5044" strokeWidth={0.5} />
                   <YAxis stroke="#1b4332" strokeWidth={0.5} tickFormatter={formatPrice} />
                   <Tooltip formatter={(val) => [`${val.toLocaleString()}đ`, 'Revenue']} />
-                  <Area type="monotone" dataKey="revenue" stroke="#1b4332" fill="#1b4332" fillOpacity={0.15} strokeWidth={2} />
+                  <Area type="monotone" dataKey="revenue" stroke="#1b4332" strokeFill="url(#colorRevenue)" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
 
-        {/* Bottom charts: Bar & Pies */}
+        {/* Bottom charts: Bar & Pie & Doughnut */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Best Selling Products */}
+          {/* Best-selling products Bar Chart */}
           <div className="bg-white rounded-3xl p-6 border border-secondary/10 shadow-sm space-y-4 text-left">
-            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Top Grains Demands</h3>
-            <div className="h-72 w-full text-xs">
+            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Best-Selling Grains</h3>
+            <div className="h-72 w-full text-[10px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productSales}>
-                  <XAxis dataKey="name" stroke="#6e5044" strokeWidth={0.5} />
-                  <YAxis stroke="#1b4332" strokeWidth={0.5} />
-                  <Tooltip />
-                  <Bar dataKey="sales" fill="#1b4332" radius={[10, 10, 0, 0]}>
-                    {productSales.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
+                <BarChart data={productSales} layout="vertical">
+                  <XAxis type="number" strokeWidth={0.5} />
+                  <YAxis dataKey="name" type="category" width={80} strokeWidth={0.5} />
+                  <Tooltip formatter={(val) => [val + " bags", "Quantity Sold"]} />
+                  <Bar dataKey="sales" fill="#1b4332" radius={[0, 8, 8, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Category Distribution */}
+          {/* Sales by Category Pie Chart */}
           <div className="bg-white rounded-3xl p-6 border border-secondary/10 shadow-sm space-y-4 text-left">
-            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Rice Category Share</h3>
-            <div className="h-72 w-full text-xs">
-              <ResponsiveContainer width="100%" height="100%">
+            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Sales by Category</h3>
+            <div className="h-72 w-full text-xs relative flex flex-col justify-center items-center">
+              <ResponsiveContainer width="100%" height="80%">
                 <PieChart>
                   <Pie
-                    data={categoryData}
+                    data={displayCategoryData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
+                    innerRadius={50}
+                    outerRadius={70}
                     paddingAngle={3}
                     dataKey="value"
                   >
-                    {categoryData.map((entry, index) => (
+                    {displayCategoryData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val) => `${val}%`} />
-                  <Legend />
+                  <Tooltip formatter={(val) => [val + " bags", "Sales"]} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] font-bold text-secondary-dark">
+                {displayCategoryData.map((entry, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                    <span>{entry.name} ({entry.value})</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Fulfillment Status */}
+          {/* Order Status Doughnut */}
           <div className="bg-white rounded-3xl p-6 border border-secondary/10 shadow-sm space-y-4 text-left">
-            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Fulfillment Distribution</h3>
-            <div className="h-72 w-full text-xs">
-              <ResponsiveContainer width="100%" height="100%">
+            <h3 className="font-bold text-sm text-secondary-dark uppercase tracking-wider m-0">Orders Status Breakdown</h3>
+            <div className="h-72 w-full text-xs relative flex flex-col justify-center items-center">
+              <ResponsiveContainer width="100%" height="80%">
                 <PieChart>
                   <Pie
-                    data={orderStatusData}
+                    data={displayOrderStatusData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
+                    outerRadius={70}
+                    label
                     dataKey="value"
                   >
-                    {orderStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {displayOrderStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val) => `${val}%`} />
-                  <Legend />
+                  <Tooltip formatter={(val) => [val + " order(s)", "Count"]} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] font-bold text-secondary-dark">
+                {displayOrderStatusData.map((entry, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: COLORS[(idx + 2) % COLORS.length] }} />
+                    <span>{entry.name} ({entry.value})</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

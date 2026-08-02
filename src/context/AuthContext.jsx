@@ -52,9 +52,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('saigon_rice_user', JSON.stringify(currentUser));
-      const updatedUsers = users.map(u => u.email === currentUser.email ? currentUser : u);
-      setUsers(updatedUsers);
-      localStorage.setItem('saigon_rice_all_users', JSON.stringify(updatedUsers));
+      setUsers(prevUsers => {
+        const updated = prevUsers.map(u => u.email === currentUser.email ? currentUser : u);
+        localStorage.setItem('saigon_rice_all_users', JSON.stringify(updated));
+        return updated;
+      });
     } else {
       localStorage.removeItem('saigon_rice_user');
     }
