@@ -32,9 +32,8 @@ export const SubscriptionCard = ({ tier, onSubscribe }) => {
   return (
     <motion.div
       whileHover={{ y: -8 }}
-      className={`bg-white rounded-3xl p-8 border-2 shadow-lg flex flex-col justify-between h-full relative ${
-        tier.popular ? 'border-primary shadow-xl ring-2 ring-primary/20' : 'border-secondary/10'
-      }`}
+      className={`bg-white rounded-3xl p-8 border-2 shadow-lg flex flex-col justify-between h-full relative ${tier.popular ? 'border-primary shadow-xl ring-2 ring-primary/20' : 'border-secondary/10'
+        }`}
     >
       {tier.popular && (
         <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white font-extrabold text-xs px-4 py-1.5 rounded-full uppercase tracking-wider shadow-md">
@@ -83,11 +82,10 @@ export const SubscriptionCard = ({ tier, onSubscribe }) => {
                 key={f}
                 type="button"
                 onClick={() => setFrequency(f)}
-                className={`py-2 px-1 rounded-xl text-[10px] font-bold transition-all border cursor-pointer ${
-                  frequency === f
+                className={`py-2 px-1 rounded-xl text-[10px] font-bold transition-all border cursor-pointer ${frequency === f
                     ? 'bg-primary border-primary text-white shadow-sm'
                     : 'bg-white border-secondary/15 text-secondary-dark hover:bg-soft-gray'
-                }`}
+                  }`}
               >
                 {getFreqName(f)}
               </button>
