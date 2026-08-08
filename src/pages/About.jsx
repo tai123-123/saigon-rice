@@ -94,7 +94,7 @@ export const About = () => {
             className="aspect-[4/3] rounded-3xl overflow-hidden shadow-lg border border-secondary/5"
           >
             <img 
-              src="/rice_wholesale_store.jpg" 
+              src={`${import.meta.env.BASE_URL}rice_wholesale_store.jpg`}
               alt="Vietnam wholesale rice store sacks" 
               className="w-full h-full object-cover"
             />
